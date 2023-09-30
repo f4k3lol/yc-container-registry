@@ -4,14 +4,14 @@ locals {
   repo_lifecycle_policies = flatten([
     for policy_key, policy_value in try(jsondecode(var.repo_lifecycle_policies), var.repo_lifecycle_policies) : {
       for repo in local.repos :
-        base64encode("${repo}|${policy_key}") => merge(policy_value, { "repo" = repo }) if length(regexall(policy_value.repo_regexp, repo)) > 0
+        replace("${repo}!${policy_key}", "/", "|") => merge(policy_value, { "repo" = repo }) if length(regexall(policy_value.repo_regexp, repo)) > 0
     }
   ])
 
   iam_bindings = flatten([
     for binding_key, binding_value in try(jsondecode(var.iam_bindings), var.iam_bindings) : {
       for repo in local.repos :
-        base64encode("${repo}|${binding_key}") => merge(binding_value, { "repo" = repo }) if length(regexall(binding_value.repo_regexp, repo)) > 0
+        replace("${repo}!${binding_key}", "/", "|") => merge(binding_value, { "repo" = repo }) if length(regexall(binding_value.repo_regexp, repo)) > 0
     }
   ])
 }
