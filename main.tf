@@ -1,19 +1,19 @@
 locals {
   repos = try(toset(jsondecode(var.repos)), toset(var.repos))
 
-  repo_lifecycle_policies = flatten([
+  repo_lifecycle_policies = merge([
     for policy_key, policy_value in try(jsondecode(var.repo_lifecycle_policies), var.repo_lifecycle_policies) : {
       for repo in local.repos :
         replace("${repo}-${policy_key}", "/[^-a-z0-9]/", "-") => merge(policy_value, { "repo" = repo }) if length(regexall(policy_value.repo_regexp, repo)) > 0
     }
-  ])
+  ]...)
 
-  iam_bindings = flatten([
+  iam_bindings = merge([
     for binding_key, binding_value in try(jsondecode(var.iam_bindings), var.iam_bindings) : {
       for repo in local.repos :
         replace("${repo}-${binding_key}", "/[^-a-z0-9]/", "-") => merge(binding_value, { "repo" = repo }) if length(regexall(binding_value.repo_regexp, repo)) > 0
     }
-  ])
+  ]...)
 }
 
 resource "yandex_container_registry" "registry" {
@@ -26,7 +26,7 @@ resource "yandex_container_repository" "repos" {
 }
 
 resource "yandex_container_repository_lifecycle_policy" "policy" {
-  for_each      = length(local.repo_lifecycle_policies) > 0 ? local.repo_lifecycle_policies[0] : {}
+  for_each      = length(local.repo_lifecycle_policies) > 0 ? local.repo_lifecycle_policies : {}
   name          = each.key
   status        = "active"
   repository_id = yandex_container_repository.repos[each.value.repo].id
@@ -44,7 +44,7 @@ resource "yandex_container_repository_lifecycle_policy" "policy" {
 }
 
 resource "yandex_container_repository_iam_binding" "binding" {
-  for_each      = length(local.iam_bindings) > 0 ? local.iam_bindings[0] : {}
+  for_each      = length(local.iam_bindings) > 0 ? local.iam_bindings : {}
   repository_id = yandex_container_repository.repos[each.value.repo].id
   role          = each.value.role
   members       = each.value.members
